@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title> RAM </title>
+    <link rel = "stylesheet" type = "text/css" href = "css/styles.css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:500,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Work+Sans" rel="stylesheet">
+</head>
+
+<body>
+    <div class = "container top">
+        <h1>OPTIMIZING THE LATENT SPACE REPRESENTATION</h1>
+    </div>
+
+    <div class = "container center">
+        <p>This is an implementation of <a href = "https://arxiv.org/abs/1707.05776">https://arxiv.org/abs/1707.05776.</a>
+            There are two branches in this repository.</p>
+        <p>master branch: <img src="https://latex.codecogs.com/gif.latex?\inline&space;$l_2$" alt="equation" /> as loss function</p>
+        <p>Laplace branch: Laplacian pyramid loss as loss function.</p>
+        <h2>Why 2 different loss functions?</h2>
+        <p>According to the paper, <img src="https://latex.codecogs.com/gif.latex?\inline&space;$l_2$" alt="equation" /> loss is supposed to render
+            blurry images from learned noise representations. And laplacian pyramid loss is supposed to generated sharper images. My experience has been
+            the opposite. The generated images through <img src="https://latex.codecogs.com/gif.latex?\inline&space;$l_2$" alt="equation" /> loss are much
+            sharper than Laplacian Pyramid Loss.</p>
+        <p>Before discussing possible reasons, let me explain what Laplacian pyrmaids and how to construct one: </p>
+        <h2>Laplacian Pyramid:</h2>
+
+        <p>Build a Gaussian kernel to convolve the image with.</p>
+
+        <ol>
+            <li>Call your original Image <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_0$" alt="Equation" /></li>
+
+            <blockquote>
+                <p>A gaussian kernel is used to introduce blur into the image, also called Gaussian blur.
+                    See <a href="https://en.wikipedia.org/wiki/Gaussian_blur">Wikipedia</a> for more information.</p>
+            </blockquote>
+
+            <li>Convolve <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_0$" alt="Equation" /> with Gaussian Kernel and
+                call the resulting image <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1$" alt="Equation" />.
+                <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1$" alt="Equation" /> will now have a reduced shape.
+            </li>
+
+            <blockquote>
+                For example: with 3x3 Gaussian kernel and 28x28 image, the size of
+                <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1$" alt="Equation" /> is 24x24.
+            </blockquote>
+
+            <li>Expand <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1$" alt="Equation" />
+                and call the resulting image <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1exp$" alt="Equation" />.
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_0$" alt="Equation" />
+                and <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1exp$" alt="Equation" /> should have same dimensions.
+            </li>
+
+            <blockquote>
+                I have implemented this expand as conv_transpose with the same Gaussian Kernel.
+            </blockquote>
+
+            <li>First level of Laplacian Pyramid:
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$L_1$" alt="Equation" /> =
+                <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_0$" alt="Equation" /> -
+                <img src="https://latex.codecogs.com/gif.latex?\inline&space;$G_1exp$" alt="Equation" /></li>
+
+            <li>Sub-sample the image and repeat from step 1.
+                Drop alternate rows and columns.</li>
+          </ol>
+
+        <h2>Where it went wrong?</h2>
+
+        <p>I have implemented Step 3(expand) by doing a conv_transpose with the same Gaussian Kernel. May be this is where it went wrong.
+        Future commits in Laplace branch will focus on correcting this algorithm. For now,
+            I intend to follow tutorial found <a href="https://www.cs.utah.edu/~arul/report/node12.html">here</a></p>
+
+        <h2>Overview:</h2>
+
+        <p>A brief overview of how the model woks:
+        Each real image from the dataset is paired with a random noise. Lets call this random noise
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$Z_i$" alt="Equation" /> for image
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$x_i$" alt="Equation" />.
+            For all 60,000 images in the dataset we will have 60,000 pairs of
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;($z_i$,&space;$x_i$" alt="Equation" />).</p>
+
+        <blockquote>
+          <p>From now on let call this 60,000 as n, that is the no. of images in dataset.</p>
+        </blockquote>
+
+        <p>Let <strong>Z</strong> be a vector of dimensions <img src="https://latex.codecogs.com/gif.latex?\inline&space;$n$,$d$" alt="Equation" />
+            where d is the size of noise vector. And <img src="https://latex.codecogs.com/gif.latex?\inline&space;$Z_{n,d}$" alt="Equation" />
+            contains all n noise vectors. So, the 4th row of <strong>Z</strong> is the noise vector corresponding to 4th image in the dataset.</p>
+
+        <p>To select individual noise vectors out of this <strong>Z</strong> we use a one<em>hot</em>vector
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$O_{1,n}$" alt="Equation" />.
+        Let <img src="https://latex.codecogs.com/gif.latex?\inline&space;$N_i$" alt="Equation" /> be a noise vector corresponding to some image i.</p>
+
+        <blockquote>
+          <p><img src="https://latex.codecogs.com/gif.latex?\inline&space;$N_{1,d}$&space;=&space;$O_{1,n}$&space;x&space;$Z_{n,d}$" alt="Equation" />
+          where <img src="https://latex.codecogs.com/gif.latex?\inline&space;$i^{th}$" alt="Equation" />
+              element in O is 1 and rest are 0. Matrix Multiplication will select
+              <img src="https://latex.codecogs.com/gif.latex?\inline&space;$i^{th}$" alt="Equation" />  row from Z.</p>
+        </blockquote>
+
+        <p>Reshape <img src="https://latex.codecogs.com/gif.latex?\inline&space;$N_i$" alt="Equation" /> of size(1,d) as (p,p,p,1).
+            where d = <img src="https://latex.codecogs.com/gif.latex?\inline&space;$p^3$" alt="Equation" />.
+            Now we can use this 4-D tensor to perform conv_transpose.</p>
+
+        <p>The no.of layers to generate image will depend on:</p>
+
+        <ol>
+        <li>The size of noise vector.</li>
+        <li>The choice of padding and strides.</li>
+        </ol>
+
+        <p>Call this generated image <img src="https://latex.codecogs.com/gif.latex?\inline&space;$x'$" alt="Equation" />.
+            Calulcate <img src="https://latex.codecogs.com/gif.latex?\inline&space;$l_2$" alt="equation" /> loss between
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$x'$" alt="Equation" /> and
+            <img src="https://latex.codecogs.com/gif.latex?\inline&space;$x_i$" alt="Equation" />. Using backprop, update the noise vector. </p>
+
+        <p>In the initial stages, generated images will be blurry and distorted, but after just 5 or 10 passes through dataset,
+            generated images are sharper and resemble real images from dataset.</p>
+
+        <h2 id="generatedimages">Generated Images:</h2>
+
+        <p><img src="/images/generated/run2/10360.png" alt="Image generated from noise" /></p>
+    </div>
+
+    <div class = "container bottom">
+        Bottom
+    </div>
+</body>
+</html>
